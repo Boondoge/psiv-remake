@@ -103,6 +103,16 @@ public class PartyStripController : MonoBehaviour
     }
 
     /// <summary>
+    /// Makes a single tile's portrait visible without touching any other strip state.
+    /// Used to reveal the targeted party member before an enemy attack animation plays.
+    /// </summary>
+    public void ShowPortraitForIndex(int partyIndex)
+    {
+        if (tiles == null || partyIndex < 0 || partyIndex >= tiles.Count) return;
+        tiles[partyIndex]?.SetPortraitVisible(true);
+    }
+
+    /// <summary>
     /// Enemy -> hero portrait hit flash helper.
     /// Returns false if the tile/index is invalid.
     /// </summary>
@@ -120,7 +130,9 @@ public class PartyStripController : MonoBehaviour
     /// Updates the party strip.
     ///
     /// activeHeroIndex:
-    ///   Which index in 'players' is currently the active hero (command selection), or -1 if none (show all portraits).
+    ///   -2 = action phase: show NO portraits
+    ///   -1 = battle start: show ALL portraits
+    ///  >= 0 = command selection: show only that hero's portrait
     /// </summary>
     public void RefreshStrip(
         List<BattleCombatant> players,
@@ -152,9 +164,10 @@ public class PartyStripController : MonoBehaviour
             bool isActiveHero = (i == activeHeroIndex);
             bool isKo = (combatant.hp <= 0);
 
-            // If activeHeroIndex == -1, show portraits for ALL party members.
-            // If activeHeroIndex >= 0, show only the active hero's portrait.
-            bool showPortrait = (activeHeroIndex < 0) || isActiveHero;
+            // -2 = action phase: show no portraits
+            // -1 = battle start: show all portraits
+            // >= 0 = command selection: show only the active hero
+            bool showPortrait = activeHeroIndex == -1 || isActiveHero;
 
             // --- Resolve status sprite ---
             Sprite statusSprite = null;

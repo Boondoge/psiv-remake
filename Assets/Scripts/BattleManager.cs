@@ -234,9 +234,9 @@ public class BattleManager : MonoBehaviour
         target.hp -= finalDamage;
         if (target.hp < 0) target.hp = 0;
 
-        BattleUI.Instance?.PlayDamageFlash();
-        BattleUI.Instance?.ShowMessage($"{enemyAI.name} hits {target.name} for {finalDamage} damage!");
-        BattleUI.Instance?.RefreshStatus(_players, _enemies);
+        // Portrait flash → message → refresh, in the correct PSIV order.
+        if (BattleUI.Instance != null)
+            StartCoroutine(BattleUI.Instance.PlayEnemyHitSequenceOnParty(enemyAI.name, targetIndex, target.name, finalDamage));
 
         // Optional: check party defeat here; but usually the round-end check covers it.
     }
@@ -337,8 +337,12 @@ public class BattleManager : MonoBehaviour
     /// </summary>
     private IEnumerator ActionPhase()
     {
-        // Hide menus during action resolution
+        // Hide menus and immediately establish portrait-hidden state for the action phase.
+        // Without the RefreshStatus call, portrait visibility depends on which actor goes first —
+        // if enemy goes first the portrait lingers from command phase; if party goes first the
+        // party's post-attack RefreshStatus hides it before the enemy swings.
         BattleUI.Instance?.HideMenusForActionPhase();
+        BattleUI.Instance?.RefreshStatus(_players, _enemies);
 
         yield return new WaitForSeconds(0.25f);
 
@@ -498,7 +502,20 @@ public class BattleManager : MonoBehaviour
                         factor = DamageFactor.Force // normal physical attack for now
                     };
 
-                    enemy.enemyRef.PlayBattleAttackAnimation();
+                    // Show the targeted party member's portrait so the player knows
+                    // who is being attacked before the animation plays.
+                    BattleUI.Instance?.ShowTargetedPartyPortrait(act.targetIndex);
+
+                    // Yield on the attack coroutine directly so the loop waits for the
+                    // full animation before moving to the next action.
+                    yield return StartCoroutine(enemy.enemyRef.PlayBattleAttack());
+
+                    // Give the portrait flash (started by OnEnemyHit at the hit frame) time to finish.
+                    float flashDuration = BattleUI.Instance != null
+                        ? BattleUI.Instance.GetPartyPortraitFlashDuration()
+                        : 0f;
+                    if (flashDuration > 0f)
+                        yield return new WaitForSeconds(flashDuration);
                 }
                 else
                 {
@@ -508,21 +525,10 @@ public class BattleManager : MonoBehaviour
                     target.hp -= finalDamage;
                     if (target.hp < 0) target.hp = 0;
 
-                    // TODO: Fix to crit-only, and trigger screen flash ONLY when this hit is a critical.
-
-                    BattleUI.Instance?.PlayDamageFlash();
-
                     if (BattleUI.Instance != null)
-                    {
-                        StartCoroutine(BattleUI.Instance.PlayEnemyHitSequenceOnParty(enemy.name, act.targetIndex, target.name, finalDamage));
-                    }
+                        yield return BattleUI.Instance.PlayEnemyHitSequenceOnParty(enemy.name, act.targetIndex, target.name, finalDamage);
 
-                    // Refresh AFTER blink so HP/damage "appears" after the flash.
-                    StartCoroutine(CoRefreshAfterDelay(BattleUI.Instance.GetPartyPortraitFlashDuration()));
-
-
-                    BattleUI.Instance?.ShowMessage($"{enemy.name} hits {target.name} for {finalDamage} damage!");
-                    BattleUI.Instance?.RefreshStatus(_players, _enemies);
+                    yield return new WaitForSeconds(0.25f);
                 }
 
                 if (AreAllPlayersDefeated())
@@ -530,8 +536,6 @@ public class BattleManager : MonoBehaviour
                     EndBattle(BattleOutcome.Defeat);
                     yield break;
                 }
-
-                yield return new WaitForSeconds(0.25f);
             }
         }
 

@@ -7,6 +7,32 @@
 [Ll]ogs/
 [Uu]ser[Ss]ettings/
 
+# Unity assets — only tracking Assets/Scripts/
+Assets/Animations/
+Assets/Animations.meta
+Assets/Materials/
+Assets/Materials.meta
+Assets/Prefabs/
+Assets/Prefabs.meta
+Assets/Resources/*
+Assets/Resources.meta
+!Assets/Resources/Battle
+Assets/Scenes/
+Assets/Scenes.meta
+Assets/Sprites/
+Assets/Sprites.meta
+Assets/PSIV/
+Assets/PSIV.meta
+Assets/Tree_Textures/
+Assets/Tree_Textures.meta
+Assets/Scripts.meta
+Assets/TextMesh\ Pro/
+Assets/TextMesh\ Pro.meta
+Assets/UI\ Toolkit/
+Assets/UI\ Toolkit.meta
+ProjectSettings/
+Packages/
+
 # Unity cache / auto-generated
 *.pidb
 *.suo

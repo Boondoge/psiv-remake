@@ -80,10 +80,12 @@ public class BattleUI : MonoBehaviour
 
     private List<Sprite> heroCommandIconsThisRound = new List<Sprite>();
 
-    // NEW: Track whether we are actively in the command input UX phase.
-    // Battle start + action phase should show ALL portraits.
-    // Command selection should show ONLY active hero portrait.
+    // Tracks which portrait visibility mode the strip should use.
+    // _actionPhaseActive takes priority: show none (-2).
+    // _commandPhaseActive (and not action): show only active hero (>= 0).
+    // Neither: battle start, show all (-1).
     private bool _commandPhaseActive = false;
+    private bool _actionPhaseActive = false;
 
     public int CurrentEnemyIndex
     {
@@ -222,7 +224,8 @@ public class BattleUI : MonoBehaviour
         enemyCount = 0;
 
         inTargetSelection = false;
-        _commandPhaseActive = false; // battle start shows ALL portraits
+        _commandPhaseActive = false;
+        _actionPhaseActive = false; // battle start shows ALL portraits
 
         currentLayer = MenuLayer.Main;
         mainIndex = 0;
@@ -264,6 +267,7 @@ public class BattleUI : MonoBehaviour
                               List<BattleCombatant> enemies)
     {
         _commandPhaseActive = true;
+        _actionPhaseActive = false;
 
         heroCount = totalHeroes;
         currentHeroIndex = Mathf.Clamp(heroIndex, 0, Mathf.Max(0, heroCount - 1));
@@ -391,12 +395,16 @@ public class BattleUI : MonoBehaviour
         // Bottom party strip
         if (partyStripController != null)
         {
-            // If we are in command UX phase: show only active hero portrait.
-            // Otherwise: show all portraits (battle start + action phase).
-            int activeHero =
-                (_commandPhaseActive && players != null && players.Count > 0)
-                    ? Mathf.Clamp(currentHeroIndex, 0, players.Count - 1)
-                    : -1;
+            // -2 = action phase: show no portraits
+            // -1 = battle start: show all portraits
+            // >= 0 = command selection: show only active hero
+            int activeHero;
+            if (_actionPhaseActive)
+                activeHero = -2;
+            else if (_commandPhaseActive && players != null && players.Count > 0)
+                activeHero = Mathf.Clamp(currentHeroIndex, 0, players.Count - 1);
+            else
+                activeHero = -1;
 
             IList<Sprite> commandIcons = null;
             if (players != null && players.Count > 0)
@@ -422,13 +430,23 @@ public class BattleUI : MonoBehaviour
         Debug.Log("[BattleUI] " + message);
     }
 
+    /// <summary>
+    /// Reveals the targeted party member's portrait just before an enemy attack animation plays,
+    /// so the player knows who is being targeted. The portrait then flashes on hit via PlayEnemyHitSequenceOnParty.
+    /// </summary>
+    public void ShowTargetedPartyPortrait(int partyIndex)
+    {
+        if (partyStripController != null)
+            partyStripController.ShowPortraitForIndex(partyIndex);
+    }
+
     public void HideMenusForActionPhase()
     {
         if (battleMenuPopup != null) battleMenuPopup.SetActive(false);
         if (comdMenuPopup != null) comdMenuPopup.SetActive(false);
 
-        // Action phase: show all portraits
         _commandPhaseActive = false;
+        _actionPhaseActive = true; // action phase: hide all portraits
         inTargetSelection = false;
     }
 

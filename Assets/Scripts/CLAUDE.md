@@ -26,6 +26,10 @@ A dungeon-crawling RPG in Unity inspired by Phantasy Star IV. Original project, 
 - `PartyManager.cs` — singleton, owns activeParty (CharacterData), builds BattleCombatant list
 - `StatCalculator.cs` — centralized stat formulas (ATK/DEF/MAG/MRES/HIT/EVD/CRIT)
 
+### Battle shader assets
+- `Resources/Battle/SG_SpriteHitFlash_preserve-lines-white-out.shadergraph` — ShaderGraph flash shader for enemy SpriteRenderers; uses `_FlashAmount` (0→1 blends to white)
+- `Resources/Battle/UIFlash.shader` — Built-in Pipeline UI-compatible flash shader with the same `_FlashAmount` logic; required for portrait Image components (ShaderGraph Canvas target is URP-only)
+
 ### Exploration/world layer script map
 - `GameModeManager.cs` — singleton enum (`Exploration`/`Battle`), fires `OnModeChanged` event; DontDestroyOnLoad
 - `BattleGateway.cs` — singleton bridge between exploration and battle: disables exploration controls, swaps UI, calls `BattleFactory` + `BattleManager.BeginBattle()`, handles `OnBattleFinished` (victory/flee/defeat), syncs HP back via `PartyManager.SyncHPBackFromBattle()`
@@ -43,12 +47,22 @@ A dungeon-crawling RPG in Unity inspired by Phantasy Star IV. Original project, 
 - `EnemyHealth.cs` — old standalone HP component (`TakeDamage` → `Destroy`), predates `BaseEnemyAI`. Nothing in the current system calls it. **Candidate for deletion.**
 - `Old Scripts/OLDEnemyAi.cs`, `OLD2EnemyAi.cs`, `OLD3EnemyAi.cs`, `OLDBaseEnemyAI.cs` — archived iterations, not active
 
+### Portrait visibility rules
+- **Battle start** (before first command): all portraits visible
+- **Command selection**: only the hero currently choosing a command
+- **Action phase**: no portraits — `RefreshStatus` is called immediately after `HideMenusForActionPhase()` to establish this consistently regardless of initiative order
+- **Enemy targeting a party member**: that member's portrait is shown via `BattleUI.ShowTargetedPartyPortrait()` before the attack animation plays, so the player knows who is being attacked
+- **Hit on a party member**: `PartyStripEntry.PlayPortraitHitFlash()` forces the portrait visible and flashes it; this runs independently of strip state and must not be removed
+- Portrait visibility in `PartyStripController.RefreshStrip` is driven by `activeHeroIndex`: `-2` = none, `-1` = all, `>= 0` = only that index
+
 ### Key data flow
 1. `EncounterTrigger` detects player proximity → `BattleGateway.StartBattle(enemies)`
 2. `BattleGateway` sets `GameModeManager` to Battle, disables exploration scripts, swaps UI
 3. `BattleFactory.CreateEnemiesFromBaseAI()` + `PartyManager.BuildBattleParty()` build combatant lists
 4. `BattleManager.BeginBattle()` runs PlayerPhase (command input) → ActionPhase (resolve in initiative order)
-5. `BattleUI.PlayActionSequence_PlayerVsEnemy()` plays visuals BEFORE damage text (PSIV feel)
+5. ActionPhase: `HideMenusForActionPhase()` + immediate `RefreshStatus` hides all portraits; then per action:
+   - **Player attack**: `PlayActionSequence_PlayerVsEnemy()` plays visuals BEFORE damage text (PSIV feel)
+   - **Enemy attack**: `ShowTargetedPartyPortrait()` reveals target → `yield return StartCoroutine(PlayBattleAttack())` awaits full animation → hit frame fires `OnEnemyHit` → `PlayEnemyHitSequenceOnParty()` flashes portrait → `RefreshStatus` hides it
 6. Visual lookup: `BattleActorVisualCatalog.TryGet(characterId, actionType, weaponStyle, abilityId)`
 7. Enemy flash: `HitReactionGroup.PlayHitFlashRoutine()` using shader `_FlashAmount` property
 8. On battle end: `BattleGateway.OnBattleFinished()` handles victory/flee/defeat, calls `PartyManager.SyncHPBackFromBattle()`, restores exploration state
@@ -82,8 +96,8 @@ A dungeon-crawling RPG in Unity inspired by Phantasy Star IV. Original project, 
 
 ## Current state
 - Battle visuals pipeline is working: catalog lookup → caster prefab → per-hit VFX → shader blink → damage text
-- Party strip shows portraits (all during action phase, active-only during command selection)
-- Portrait hit flash works for enemy → party impacts
+- Portrait visibility: all at battle start → active hero during command selection → none during action phase → target revealed before enemy attack → flash on hit
+- Portrait hit flash works for enemy → party impacts; uses `UIFlash.shader` (Built-in UI-compatible, `_FlashAmount`)
 - Attack and Defend commands functional; Tech/Skill/Item are stubs
 - BattleGateway wired: exploration → battle → exploration round-trip works
 - Secondary objectives system designed but not yet implemented (design doc exists, needs data layer decision)
