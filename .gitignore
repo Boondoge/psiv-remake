@@ -65,6 +65,8 @@ Thumbs.db
 
 # Claude Code local settings
 .claude/
+CLAUDE.md
+CLAUDE.md.meta
 
 # Recovery / backup folders
 _Recovery/
