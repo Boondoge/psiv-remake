@@ -43,6 +43,9 @@ public class BattleUI : MonoBehaviour
     [Header("Party Strip")]
     [SerializeField] private PartyStripController partyStripController;
 
+    [Header("Enemy Name Bar")]
+    [SerializeField] private EnemyNameBar enemyNameBar;
+
     [Header("Command Icons for Party Strip")]
     [SerializeField] private Image attackCommandIcon;
     [SerializeField] private Image techCommandIcon;
@@ -243,6 +246,8 @@ public class BattleUI : MonoBehaviour
         if (partyStripController != null)
             partyStripController.InitializeEmpty();
 
+        enemyNameBar?.HideAll();
+
         if (commandMenuSelectorImage != null)
             commandMenuSelectorImage.color = commandSelectorBaseColor;
     }
@@ -422,6 +427,11 @@ public class BattleUI : MonoBehaviour
                 null  // Future badgeTextColors
             );
         }
+
+        // Enemy name bar: show at battle start and after each action phase (rebuilt from survivors).
+        // During action phase this is a no-op because HideMenusForActionPhase already called HideAll.
+        if (!_actionPhaseActive)
+            enemyNameBar?.ShowFromEnemies(enemies);
     }
 
     public void ShowMessage(string message)
@@ -448,6 +458,8 @@ public class BattleUI : MonoBehaviour
         _commandPhaseActive = false;
         _actionPhaseActive = true; // action phase: hide all portraits
         inTargetSelection = false;
+
+        enemyNameBar?.HideAll();
     }
 
     /// <summary>
