@@ -416,11 +416,16 @@ public class BattleManager : MonoBehaviour
                     target.hp -= damage;
                     if (target.hp < 0) target.hp = 0;
 
+                    // TODO: multi-hit consolidation — for weapons with multiple hits,
+                    // sum all hit damage here and pass the total to ShowEnemyDamagePopup.
+                    BattleUI.Instance?.ShowEnemyDamagePopup(target.enemyRef, damage);
+
                     BattleUI.Instance?.ShowMessage($"{hero.name} attacks {target.name} for {damage} damage!");
                     BattleUI.Instance?.RefreshStatus(_players, _enemies);
 
-                    // Linger so the damage readout has time before the next action.
-                    yield return new WaitForSeconds(0.6f);
+                    // Wait for the full popup lifecycle before starting the next action.
+                    float popupDuration = BattleUI.Instance?.GetDamagePopupDuration() ?? 0.6f;
+                    yield return new WaitForSeconds(popupDuration);
 
                     if (!IsAlive(target))
                     {
@@ -516,6 +521,12 @@ public class BattleManager : MonoBehaviour
                         : 0f;
                     if (flashDuration > 0f)
                         yield return new WaitForSeconds(flashDuration);
+
+                    // The damage popup is spawned at the END of the flash sequence,
+                    // so wait a full popup lifetime before starting the next action.
+                    float popupDuration = BattleUI.Instance?.GetDamagePopupDuration() ?? 0f;
+                    if (popupDuration > 0f)
+                        yield return new WaitForSeconds(popupDuration);
                 }
                 else
                 {

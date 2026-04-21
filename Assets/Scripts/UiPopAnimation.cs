@@ -13,6 +13,14 @@ public class UiPopAnimation : MonoBehaviour
     [SerializeField] private float showDuration = 0.15f;
     [SerializeField] private float hideDuration = 0.12f;
 
+    public float ShowDuration => showDuration;
+    public float HideDuration => hideDuration;
+
+    [Tooltip("If true, both X and Y scale animate together (true pop). " +
+             "If false, only X animates (horizontal wipe). " +
+             "Use true for damage popups, false for name bar boxes.")]
+    [SerializeField] private bool animateBothAxes = false;
+
     private Coroutine _current;
     private RectTransform _rt;
 
@@ -47,19 +55,22 @@ public class UiPopAnimation : MonoBehaviour
     {
         Vector3 scale = _rt.localScale;
         scale.x = from;
-        scale.y = 1f;
+        scale.y = animateBothAxes ? from : 1f;
         _rt.localScale = scale;
 
         float t = 0f;
         while (t < duration)
         {
             t += Time.unscaledDeltaTime;
-            scale.x = Mathf.Lerp(from, to, Mathf.Clamp01(t / duration));
+            float v = Mathf.Lerp(from, to, Mathf.Clamp01(t / duration));
+            scale.x = v;
+            scale.y = animateBothAxes ? v : 1f;
             _rt.localScale = scale;
             yield return null;
         }
 
         scale.x = to;
+        scale.y = animateBothAxes ? to : 1f;
         _rt.localScale = scale;
         _current = null;
         onComplete?.Invoke();

@@ -46,6 +46,9 @@ public class BattleUI : MonoBehaviour
     [Header("Enemy Name Bar")]
     [SerializeField] private EnemyNameBar enemyNameBar;
 
+    [Header("Damage Popups")]
+    [SerializeField] private DamagePopupManager damagePopupManager;
+
     [Header("Command Icons for Party Strip")]
     [SerializeField] private Image attackCommandIcon;
     [SerializeField] private Image techCommandIcon;
@@ -143,10 +146,17 @@ public class BattleUI : MonoBehaviour
         float t = GetPartyPortraitFlashDuration();
         if (t > 0f) yield return new WaitForSeconds(t);
 
-        // After flash completes, show message (damage numbers later if you add popups)
-        ShowMessage($"{enemyName} hits {targetName} for {finalDamage} damage!");
+        // Damage popup appears after the flash so it doesn't fight the portrait reaction.
+        ShowCharacterDamagePopup(targetPartyIndex, finalDamage);
 
-        // Refresh status after the flash so it “appears” after reaction
+        ShowMessage(enemyName + " hits " + targetName + " for " + finalDamage + " damage!");
+
+        // Hold the portrait visible until the damage popup finishes collapsing,
+        // then hide it via RefreshStatus.
+        float popupDuration = GetDamagePopupDuration();
+        if (popupDuration > 0f)
+            yield return new WaitForSeconds(popupDuration);
+
         RefreshStatus(_lastPlayers, _lastEnemies);
     }
 
@@ -438,6 +448,26 @@ public class BattleUI : MonoBehaviour
     {
         if (logText != null) logText.text = message;
         Debug.Log("[BattleUI] " + message);
+    }
+
+    public void ShowCharacterDamagePopup(int partyIndex, int amount, bool isHeal = false)
+    {
+        damagePopupManager?.ShowCharacterDamage(partyIndex, amount, isHeal);
+    }
+
+    public void ShowEnemyDamagePopup(BaseEnemyAI enemy, int amount, bool isHeal = false)
+    {
+        damagePopupManager?.ShowEnemyDamage(enemy, amount, isHeal);
+    }
+
+    /// <summary>
+    /// Total seconds a damage popup lives (show anim + hold + hide anim).
+    /// BattleManager yields for this duration after spawning a popup so the
+    /// next action doesn't start while the number is still on screen.
+    /// </summary>
+    public float GetDamagePopupDuration()
+    {
+        return damagePopupManager != null ? damagePopupManager.TotalLifetimeSeconds : 0f;
     }
 
     /// <summary>
