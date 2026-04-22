@@ -32,6 +32,21 @@ public class EnemyNameBar : MonoBehaviour
     private readonly List<EnemyNameBox> _boxes = new List<EnemyNameBox>();
     private readonly List<string> _cachedNames = new List<string>();
 
+    /// <summary>
+    /// Duration of the box show animation, read from the prefab.
+    /// Used by BattleUI.PlayBattleIntroSequence to know how long to wait
+    /// before showing the main menu after names finish animating in.
+    /// </summary>
+    public float BoxShowDuration
+    {
+        get
+        {
+            if (nameBoxPrefab == null) return 0f;
+            var anim = nameBoxPrefab.GetComponent<UiPopAnimation>();
+            return anim != null ? anim.ShowDuration : 0f;
+        }
+    }
+
     // ---------------------------------------------------------------
     // Public API
     // ---------------------------------------------------------------

@@ -247,7 +247,8 @@ public class BattleManager : MonoBehaviour
 
     private IEnumerator BattleLoop()
     {
-        BattleUI.Instance?.RefreshStatus(_players, _enemies);
+        if (BattleUI.Instance != null)
+            yield return StartCoroutine(BattleUI.Instance.PlayBattleIntroSequence(_players, _enemies));
 
         while (!_battleIsOver)
         {
@@ -561,8 +562,10 @@ public class BattleManager : MonoBehaviour
         }
         else
         {
-            // New round: UI will go back to PlayerPhase via BattleLoop.
-            BattleUI.Instance?.RefreshStatus(_players, _enemies);
+            // New round: replay the intro sequence so enemy names animate in first,
+            // then the main menu — same order as battle start.
+            if (BattleUI.Instance != null)
+                yield return StartCoroutine(BattleUI.Instance.PlayBattleIntroSequence(_players, _enemies));
         }
     }
 

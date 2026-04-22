@@ -93,6 +93,9 @@ public class BattleUI : MonoBehaviour
     private bool _commandPhaseActive = false;
     private bool _actionPhaseActive = false;
 
+    private UiPopAnimation _mainMenuAnim;
+    private UiPopAnimation _comdMenuAnim;
+
     public int CurrentEnemyIndex
     {
         get
@@ -209,6 +212,9 @@ public class BattleUI : MonoBehaviour
         }
         Instance = this;
 
+        if (battleMenuPopup != null) _mainMenuAnim = battleMenuPopup.GetComponent<UiPopAnimation>();
+        if (comdMenuPopup != null)   _comdMenuAnim  = comdMenuPopup.GetComponent<UiPopAnimation>();
+
         if (mainMenuSelector != null)
         {
             mainMenuSelectorImage = mainMenuSelector.GetComponent<Image>();
@@ -247,7 +253,9 @@ public class BattleUI : MonoBehaviour
 
         heroCommandIconsThisRound.Clear();
 
-        if (battleMenuPopup != null) battleMenuPopup.SetActive(true);
+        // Both menus start hidden; PlayBattleIntroSequence shows the main menu
+        // after enemy names have finished animating in.
+        if (battleMenuPopup != null) battleMenuPopup.SetActive(false);
         if (comdMenuPopup != null) comdMenuPopup.SetActive(false);
 
         ResetMainSelectorBlink();
@@ -302,8 +310,8 @@ public class BattleUI : MonoBehaviour
         {
             currentLayer = MenuLayer.Command;
 
-            if (battleMenuPopup != null) battleMenuPopup.SetActive(false);
-            if (comdMenuPopup != null) comdMenuPopup.SetActive(true);
+            HideMenu(_mainMenuAnim);
+            ShowMenu(_comdMenuAnim);
 
             UpdateCommandSelector();
         }
@@ -311,8 +319,11 @@ public class BattleUI : MonoBehaviour
         {
             currentLayer = MenuLayer.Main;
 
-            if (battleMenuPopup != null) battleMenuPopup.SetActive(true);
-            if (comdMenuPopup != null) comdMenuPopup.SetActive(false);
+            // Only animate in if not already visible — intro sequence may have
+            // shown it already and we don't want to restart the animation.
+            if (battleMenuPopup == null || !battleMenuPopup.activeSelf)
+                ShowMenu(_mainMenuAnim);
+            HideMenu(_comdMenuAnim);
 
             ResetMainSelectorBlink();
             UpdateMainSelector();
@@ -333,8 +344,8 @@ public class BattleUI : MonoBehaviour
 
         currentHeroIndex = Mathf.Clamp(heroIndex, 0, Mathf.Max(0, players.Count - 1));
 
-        if (battleMenuPopup != null) battleMenuPopup.SetActive(false);
-        if (comdMenuPopup != null) comdMenuPopup.SetActive(false);
+        HideMenu(_mainMenuAnim);
+        HideMenu(_comdMenuAnim);
 
         RefreshStatus(players, enemies);
     }
@@ -347,8 +358,8 @@ public class BattleUI : MonoBehaviour
 
         currentLayer = MenuLayer.Command;
 
-        if (battleMenuPopup != null) battleMenuPopup.SetActive(false);
-        if (comdMenuPopup != null) comdMenuPopup.SetActive(true);
+        HideMenu(_mainMenuAnim);
+        ShowMenu(_comdMenuAnim);
 
         UpdateCommandSelector();
         RefreshStatus(_lastPlayers, _lastEnemies);
@@ -482,8 +493,8 @@ public class BattleUI : MonoBehaviour
 
     public void HideMenusForActionPhase()
     {
-        if (battleMenuPopup != null) battleMenuPopup.SetActive(false);
-        if (comdMenuPopup != null) comdMenuPopup.SetActive(false);
+        HideMenu(_mainMenuAnim);
+        HideMenu(_comdMenuAnim);
 
         _commandPhaseActive = false;
         _actionPhaseActive = true; // action phase: hide all portraits
@@ -639,6 +650,49 @@ public class BattleUI : MonoBehaviour
 
 
     // ============================================================
+    // Battle intro sequence
+    // ============================================================
+
+    /// <summary>
+    /// Called once by BattleManager at the start of a battle.
+    /// Enemy names animate in first; when they are fully open the main
+    /// battle menu pops in. Nothing appears simultaneously.
+    /// </summary>
+    public IEnumerator PlayBattleIntroSequence(List<BattleCombatant> players,
+                                               List<BattleCombatant> enemies)
+    {
+        // Populate the party strip and start the name bar coroutine.
+        // The name bar yields one frame internally (ContentSizeFitter layout)
+        // then begins its show animation.
+        RefreshStatus(players, enemies);
+
+        // Match the layout frame the name bar needs before it starts animating.
+        yield return null;
+
+        // Wait for the name animation to finish.
+        float nameDuration = enemyNameBar != null ? enemyNameBar.BoxShowDuration : 0f;
+        if (nameDuration > 0f)
+            yield return new WaitForSeconds(nameDuration);
+
+        // Names are fully open — now bring in the main battle menu.
+        ShowMenu(_mainMenuAnim);
+    }
+
+    // ============================================================
+    // Menu show / hide helpers (animated via UiPopAnimation)
+    // ============================================================
+
+    private void ShowMenu(UiPopAnimation anim)
+    {
+        if (anim != null) anim.Show();
+    }
+
+    private void HideMenu(UiPopAnimation anim)
+    {
+        if (anim != null) anim.Hide();
+    }
+
+    // ============================================================
     // Input handling
     // ============================================================
 
@@ -757,8 +811,8 @@ public class BattleUI : MonoBehaviour
         {
             currentLayer = MenuLayer.Main;
 
-            if (comdMenuPopup != null) comdMenuPopup.SetActive(false);
-            if (battleMenuPopup != null) battleMenuPopup.SetActive(true);
+            HideMenu(_comdMenuAnim);
+            ShowMenu(_mainMenuAnim);
 
             ResetMainSelectorBlink();
             UpdateMainSelector();
@@ -789,8 +843,8 @@ public class BattleUI : MonoBehaviour
         commandIndex = 0;
         UpdateCommandSelector();
 
-        if (battleMenuPopup != null) battleMenuPopup.SetActive(false);
-        if (comdMenuPopup != null) comdMenuPopup.SetActive(true);
+        HideMenu(_mainMenuAnim);
+        ShowMenu(_comdMenuAnim);
     }
 
     private void ConfirmCommandMenu()
